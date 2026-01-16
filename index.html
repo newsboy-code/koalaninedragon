@@ -55,16 +55,16 @@
 
         /* 보드판 컨테이너 */
         .board-container {
-            max-width: 900px;
-            margin: 0 auto 20px;
+            max-width: 1200px;
+            margin: 0 auto 30px;
             width: 100%;
         }
 
         .board-label {
             text-align: center;
-            font-size: 0.85rem;
+            font-size: 1.1rem;
             color: #666;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
             font-weight: 600;
         }
 
@@ -72,8 +72,8 @@
         .board-row {
             display: grid;
             grid-template-columns: repeat(9, 1fr);
-            gap: 6px;
-            margin-bottom: 6px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
         /* 카드 슬롯 */
@@ -92,9 +92,9 @@
 
         .card-slot .round-number {
             position: absolute;
-            top: 4px;
-            left: 4px;
-            font-size: 0.7rem;
+            top: 6px;
+            left: 6px;
+            font-size: 0.85rem;
             color: #ccc;
             font-weight: bold;
         }
@@ -111,7 +111,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: clamp(1.2rem, 4vw, 2rem);
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
             font-weight: bold;
             position: relative;
             transition: transform 0.6s;
@@ -153,15 +153,15 @@
         /* 승패 표시 */
         .result-badge {
             position: absolute;
-            top: -8px;
-            right: -8px;
-            width: 24px;
-            height: 24px;
+            top: -10px;
+            right: -10px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 0.8rem;
+            font-size: 1rem;
             font-weight: bold;
             z-index: 10;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
@@ -198,12 +198,15 @@
         /* 하단 손패 */
         #my-hand {
             background: white;
-            padding: 15px 10px calc(15px + env(safe-area-inset-bottom));
+            padding: 20px 15px calc(20px + env(safe-area-inset-bottom));
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
+            gap: 15px;
             border-top: 1px solid #ddd;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
         }
 
         .hand-card {
@@ -214,7 +217,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 1.5rem;
+            font-size: 2rem;
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
@@ -294,12 +297,16 @@
 
         .status-msg {
             text-align: center;
-            padding: 12px;
+            padding: 15px;
             background: #fff3cd;
             border-radius: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             font-weight: 600;
             color: #856404;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         /* 모바일 최적화 */
