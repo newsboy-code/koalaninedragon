@@ -6,135 +6,176 @@
     <title>뉴스보이 코알라: 구룡투</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         :root {
-            --bg: #eceff1;
-            --black-koala: #263238; /* 홀수 */
-            --white-koala: #ffffff; /* 짝수 */
-            --point: #d32f2f;
+            --bg: #f0f2f5;
+            --black-koala: #212121;
+            --white-koala: #ffffff;
+            --accent: #d32f2f;
         }
 
         body {
-            font-family: 'Pretendard', sans-serif; background: var(--bg);
-            margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden;
+            font-family: 'Pretendard', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh; /* 모바일 가변 높이 대응 */
+            overflow: hidden;
         }
 
-        /* 로비 */
+        /* 로비/접속 화면 */
         #lobby {
-            position: fixed; inset: 0; background: white; z-index: 1000;
+            position: fixed; inset: 0; background: white; z-index: 2000;
             display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px;
         }
 
-        /* 게임판 */
-        #game-board { display: none; width: 100%; max-width: 500px; height: 100%; flex-direction: column; }
-        
+        /* 상단 상태바 */
         .header {
-            padding: 15px; display: flex; justify-content: space-between; background: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-weight: bold;
+            height: 60px; background: white; display: flex;
+            justify-content: space-between; align-items: center;
+            padding: 0 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-weight: bold; z-index: 100;
         }
 
-        #arena { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; }
-        
-        .status-text { font-weight: bold; color: var(--point); margin-bottom: 10px; font-size: 1.1rem; }
+        /* 메인 아레나 */
+        #arena {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+        }
 
-        /* 카드 디자인 */
+        .status-msg { font-weight: bold; color: var(--accent); font-size: 1rem; text-align: center; height: 1.2rem; }
+
+        .battle-zone { display: flex; gap: 20px; align-items: center; }
+
+        /* 카드 공통 스타일 */
         .card {
-            width: 80px; height: 115px; border-radius: 12px; display: flex;
-            justify-content: center; align-items: center; font-size: 2.2rem; font-weight: bold;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: 0.3s;
+            width: 75px; height: 105px; border-radius: 12px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            position: relative; border: 2px solid transparent;
         }
-        
-        /* 아레나 카드 (뒷면 유지) */
-        .spot { border: 2px dashed #cfd8dc; visibility: hidden; }
-        .spot.visible { visibility: visible; }
-        .spot.back { color: white; }
-        .spot.back.odd { background: var(--black-koala); border-color: #000; }
-        .spot.back.even { background: var(--white-card); border-color: #b0bec5; color: #263238; }
+        .card.spot { visibility: hidden; }
+        .card.visible { visibility: visible; }
+        .card.back.odd { background: var(--black-koala); color: white; border-color: #000; }
+        .card.back.even { background: var(--white-koala); color: #212121; border-color: #ccc; }
 
-        /* 내 손패 */
-        .hand-area {
-            padding: 20px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
-            background: white; border-radius: 20px 20px 0 0;
+        /* 하단 손패 영역 (모바일 고정 핵심) */
+        #my-hand {
+            background: white;
+            padding: 15px 10px env(safe-area-inset-bottom); /* 아이폰 하단 바 대응 */
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            border-top: 1px solid #ddd;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
         }
+
         .hand-card {
-            background: white; border: 1px solid #ddd; cursor: pointer; font-size: 1.4rem;
-            height: 80px; display: flex; justify-content: center; align-items: center; border-radius: 8px;
+            aspect-ratio: 2/3;
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
         }
         .hand-card.odd { border-bottom: 5px solid var(--black-koala); }
-        .hand-card.even { border-bottom: 5px solid #b0bec5; }
-        .hand-card.used { opacity: 0.15; pointer-events: none; }
+        .hand-card.even { border-bottom: 5px solid #ccc; }
+        .hand-card.used { opacity: 0.1; pointer-events: none; }
 
-        /* 결과 복기용 */
+        /* 최종 리뷰 모달 */
         #final-review {
-            position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 2000;
-            display: none; flex-direction: column; align-items: center; padding: 20px; overflow-y: auto;
+            position: fixed; inset: 0; background: white; z-index: 3000;
+            display: none; flex-direction: column; padding: 20px; overflow-y: auto;
         }
-        .review-row { display: flex; gap: 20px; margin-bottom: 10px; align-items: center; border-bottom: 1px solid #eee; padding: 5px; }
+        .review-item { display: flex; justify-content: space-around; padding: 12px; border-bottom: 1px solid #eee; }
 
-        .btn { padding: 12px 24px; background: var(--point); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        .btn { padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 8px; width: 140px; }
     </style>
 </head>
 <body>
 
     <div id="lobby">
-        <h1>🐨 뉴스보이 코알라 구룡투</h1>
-        <p>상대의 <b>숫자</b>는 마지막까지 공개되지 않습니다.</p>
-        <div style="background: #f1f1f1; padding: 15px; border-radius: 10px; margin: 20px 0;">
+        <h1 style="margin-bottom:10px;">🐨 뉴스보이 코알라</h1>
+        <p style="color:#666; font-size:0.9rem;">숫자는 게임 종료 후 한꺼번에 공개됩니다.</p>
+        <div style="background:#f8f9fa; padding:15px; border-radius:12px; margin:20px 0; width:100%; max-width:280px;">
             <small>내 접속 ID</small><br>
-            <strong id="my-id">연결 중...</strong>
+            <strong id="my-id" style="font-size:1.1rem; color:var(--black-koala);">연결 중...</strong>
         </div>
-        <div style="display: flex; gap: 10px;">
-            <input type="text" id="peer-input" placeholder="상대 ID" style="padding: 10px; width: 120px;">
-            <button class="btn" onclick="connect()">게임 시작</button>
+        <div style="display:flex; gap:8px;">
+            <input type="text" id="target-id" placeholder="친구 ID 입력">
+            <button class="btn" onclick="connect()">대전 시작</button>
         </div>
     </div>
 
-    <div id="game-board">
+    <div id="game-board" style="display:none; flex-direction:column; height:100%;">
         <div class="header">
             <div>나: <span id="my-score">0</span></div>
-            <div id="round-num">ROUND 1</div>
+            <div id="round-info">ROUND 1</div>
             <div>상대: <span id="op-score">0</span></div>
         </div>
+
         <div id="arena">
-            <div id="status" class="status-text">접속 대기 중...</div>
-            <div style="display: flex; gap: 30px;">
-                <div id="op-spot" class="card spot">🐨</div>
-                <div id="my-spot" class="card spot"></div>
+            <div id="status-msg" class="status-msg">상대를 기다리는 중...</div>
+            <div class="battle-zone">
+                <div style="text-align:center;">
+                    <small style="color:#888;">상대</small>
+                    <div id="op-spot" class="card spot">🐨</div>
+                </div>
+                <div style="text-align:center;">
+                    <small style="color:#888;">나</small>
+                    <div id="my-spot" class="card spot">🐨</div>
+                </div>
             </div>
         </div>
-        <div id="my-hand" class="hand-area"></div>
+
+        <div id="my-hand"></div>
     </div>
 
     <div id="final-review">
-        <h2>전투 복기</h2>
+        <h2 style="text-align:center;">전투 복기</h2>
         <div id="review-list"></div>
-        <button class="btn" onclick="location.reload()" style="margin-top: 20px;">새 게임 하기</button>
+        <button class="btn" onclick="location.reload()" style="margin-top:20px;">새 게임 시작</button>
     </div>
 
     <script>
         let peer, conn;
-        let myS = 0, opS = 0, round = 1;
+        let myScore = 0, opScore = 0, round = 1;
         let isAttacker = false;
         let myVal = null, opColor = null, opVal = null;
-        let history = []; // {round, my, op, result}
+        let history = [];
 
         peer = new Peer();
         peer.on('open', id => document.getElementById('my-id').innerText = id);
-        peer.on('connection', c => { conn = c; init(false); });
+        peer.on('connection', c => { conn = c; setup(false); });
 
         function connect() {
-            const tid = document.getElementById('peer-input').value;
+            const tid = document.getElementById('target-id').value;
             if(!tid) return;
             conn = peer.connect(tid);
-            init(true);
+            setup(true);
         }
 
-        function init(attacker) {
+        function setup(attacker) {
             conn.on('open', () => {
                 document.getElementById('lobby').style.display = 'none';
                 document.getElementById('game-board').style.display = 'flex';
                 isAttacker = attacker;
                 renderHand();
-                updateMsg();
+                updateStatus();
             });
 
             conn.on('data', data => {
@@ -143,88 +184,87 @@
                     const spot = document.getElementById('op-spot');
                     spot.className = `card spot visible back ${opColor}`;
                     if(myVal) conn.send({type: 'COMPARE', val: myVal});
-                    else document.getElementById('status').innerText = "상대가 냈습니다! 대응하세요.";
+                    else document.getElementById('status-msg').innerText = "상대가 냈습니다! 대응하세요.";
                 } else if(data.type === 'COMPARE') {
                     opVal = data.val;
-                    calcResult();
+                    resolveRound();
                 }
             });
         }
 
         function renderHand() {
-            const h = document.getElementById('my-hand');
-            h.innerHTML = '';
+            const container = document.getElementById('my-hand');
+            container.innerHTML = '';
             for(let i=1; i<=9; i++) {
                 const c = document.createElement('div');
                 c.className = `hand-card ${i%2===0?'even':'odd'}`;
                 c.innerText = i;
-                c.id = `card-${i}`;
+                c.id = `h-${i}`;
                 c.onclick = () => {
-                    if(!isAttacker && !opColor) return alert("공격자가 먼저 내야 합니다.");
+                    if(!isAttacker && !opColor) return alert("상대방(공격자)이 먼저 내야 합니다.");
                     if(myVal) return;
                     myVal = i;
                     c.classList.add('used');
                     const mSpot = document.getElementById('my-spot');
                     mSpot.className = `card spot visible back ${i%2===0?'even':'odd'}`;
-                    mSpot.innerText = "🐨"; // 게임 중에는 내 카드도 숫자를 가립니다(긴장감 위해)
                     conn.send({type: 'COMMIT', color: i%2===0?'even':'odd'});
                     if(opColor) conn.send({type: 'COMPARE', val: myVal});
-                    else document.getElementById('status').innerText = "상대의 대응 대기 중...";
+                    else document.getElementById('status-msg').innerText = "상대의 대응 대기 중...";
                 };
-                h.appendChild(c);
+                container.appendChild(c);
             }
         }
 
-        function calcResult() {
+        function resolveRound() {
             let win = false, draw = false;
             if(myVal === opVal) draw = true;
             else if(myVal === 1 && opVal === 9) win = true;
             else if(myVal === 9 && opVal === 1) win = false;
             else win = myVal > opVal;
 
-            const resStr = draw ? "무승부" : (win ? "승리" : "패배");
-            history.push({r: round, my: myVal, op: opVal, res: resStr});
+            const res = draw ? "무승부" : (win ? "승리" : "패배");
+            history.push({r: round, my: myVal, op: opVal, res: res});
 
             setTimeout(() => {
-                alert(`라운드 ${round} 결과: ${resStr}\n(상대의 숫자는 비밀입니다!)`);
+                alert(`라운드 ${round} 결과: ${res}\n(상대의 숫자는 마지막에 공개됩니다)`);
                 if(!draw) {
-                    if(win) { myS++; isAttacker = true; }
-                    else { opS++; isAttacker = false; }
+                    if(win) { myScore++; isAttacker = true; }
+                    else { opScore++; isAttacker = false; }
                 }
-                next();
+                nextRound();
             }, 500);
         }
 
-        function next() {
-            if(round >= 9) return finish();
+        function nextRound() {
+            if(round >= 9) return showFinal();
             round++;
             myVal = null; opVal = null; opColor = null;
-            document.getElementById('my-score').innerText = myS;
-            document.getElementById('op-score').innerText = opS;
-            document.getElementById('round-num').innerText = `ROUND ${round}`;
+            document.getElementById('my-score').innerText = myScore;
+            document.getElementById('op-score').innerText = opScore;
+            document.getElementById('round-info').innerText = `ROUND ${round}`;
             document.getElementById('my-spot').className = "card spot";
             document.getElementById('op-spot').className = "card spot";
-            updateMsg();
+            updateStatus();
         }
 
-        function finish() {
+        function showFinal() {
             document.getElementById('game-board').style.display = 'none';
-            const f = document.getElementById('final-review');
-            f.style.display = 'flex';
-            const list = document.getElementById('review-list');
-            let html = `<h3>최종 스코어 - 나: ${myS} vs 상대: ${opS}</h3>`;
+            const review = document.getElementById('final-review');
+            review.style.display = 'flex';
+            let html = `<h3 style="text-align:center;">최종 결과: ${myScore > opScore ? '승리!' : (myScore === opScore ? '무승부' : '패배')}</h3>`;
             history.forEach(h => {
-                html += `<div class="review-row">
-                    <b>R${h.r}</b> 
-                    <span>나: ${h.my}</span> vs <span>상대: ${h.op}</span> 
-                    <strong style="color:var(--point)">[${h.res}]</strong>
+                html += `<div class="review-item">
+                    <span>R${h.r}</span>
+                    <span>나: <b>${h.my}</b></span>
+                    <span>상대: <b>${h.op}</b></span>
+                    <span style="color:var(--accent)">${h.res}</span>
                 </div>`;
             });
-            list.innerHTML = html;
+            document.getElementById('review-list').innerHTML = html;
         }
 
-        function updateMsg() {
-            document.getElementById('status').innerText = isAttacker ? "당신이 공격(선공)입니다" : "상대의 선공을 기다립니다";
+        function updateStatus() {
+            document.getElementById('status-msg').innerText = isAttacker ? "당신이 공격할 차례입니다" : "상대의 선공을 기다립니다";
         }
     </script>
 </body>
