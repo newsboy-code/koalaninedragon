@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>뉴스보이 코알라: 구룡투</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f8f9fa;
+            --black-card: #343a40; /* 홀수: 다크 그레이 */
+            --white-card: #ffffff; /* 짝수: 화이트 */
+            --accent-color: #e63946;
+            --text-main: #212529;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            color: var(--text-main);
+            overflow: hidden;
+        }
+
+        /* 로비 및 접속 화면 */
+        #lobby {
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        /* 게임 보드 레이아웃 */
+        #game-board {
+            display: none;
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            flex-direction: column;
+        }
+
+        .header {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            font-weight: bold;
+        }
+
+        /* 아레나 (전투 구역) */
+        #arena {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 30px;
+        }
+
+        #status-msg {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            height: 1.5rem;
+        }
+
+        .battle-zone {
+            display: flex;
+            gap: 40px;
+        }
+
+        /* 카드 공통 스타일 */
+        .card {
+            width: 70px;
+            height: 100px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+            border: 2px solid transparent;
+        }
+
+        /* 카드 앞면 (나만 봄) */
+        .card.my-hand-card { background: white; border-color: #eee; }
+        .card.my-hand-card.odd { border-bottom: 5px solid var(--black-card); }
+        .card.my-hand-card.even { border-bottom: 5px solid #ccc; }
+        .card.used { opacity: 0.3; pointer-events: none; transform: scale(0.9); }
+
+        /* 카드 뒷면 (코알라 🐨) */
+        .card.back { font-size: 2.5rem; cursor: default; }
+        .card.back.odd { background-color: var(--black-card); border-color: #000; }
+        .card.back.even { background-color: var(--white-card); border-color: #ddd; }
+
+        /* 손패 구역 */
+        .hand-container {
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            background: white;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn:disabled { background: #ccc; }
+
+        .score-box { font-size: 1.2rem; }
+    </style>
+</head>
+<body>
+
+    <div id="lobby">
+        <h1>🐨 코알라 구룡투</h1>
+        <p>친구에게 내 ID를 알려주거나, 친구 ID를 입력하세요.</p>
+        <div style="background: #f0f0f0; padding: 10px; border-radius: 8px; margin: 10px;">
+            <small>내 접속 ID</small><br>
+            <strong id="my-peer-id">...연결중</strong>
+        </div>
+        <div class="input-group">
+            <input type="text" id="target-id" placeholder="친구 ID 입력">
+            <button class="btn" onclick="startConnect()">대전 신청</button>
+        </div>
+        <div style="font-size: 0.85rem; color: #666; line-height: 1.6;">
+            <strong>[규칙]</strong><br>
+            홀수: 블랙 🐨 / 짝수: 화이트 🐨<br>
+            숫자가 크면 승리! (단, <strong>1은 9를 이깁니다</strong>)
+        </div>
+    </div>
+
+    <div id="game-board">
+        <div class="header">
+            <div class="score-box">나: <span id="my-score">0</span></div>
+            <div id="round-info">ROUND 1/9</div>
+            <div class="score-box">상대: <span id="op-score">0</span></div>
+        </div>
+
+        <div id="arena">
+            <div id="status-msg">상대를 기다리는 중...</div>
+            <div class="battle-zone">
+                <div>
+                    <small>상대</small>
+                    <div id="op-spot" class="card back" style="visibility: hidden;">🐨</div>
+                </div>
+                <div>
+                    <small>나</small>
+                    <div id="my-spot" class="card" style="visibility: hidden;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hand-container" id="my-hand">
+            </div>
+    </div>
+
+    <script>
+        let peer, conn;
+        let myScore = 0, opScore = 0;
+        let round = 1;
+        let isMyTurn = false;
+        let myPlayedValue = null;
+        let opValue = null;
+
+        // PeerJS 초기화
+        peer = new Peer();
+        peer.on('open', id => document.getElementById('my-peer-id').innerText = id);
+
+        // 상대방의 접속 대기
+        peer.on('connection', c => {
+            conn = c;
+            initCommunication();
+            startGame(false); // 수비자로 시작
+        });
+
+        function startConnect() {
+            const tid = document.getElementById('target-id').value;
+            if(!tid) return alert("ID를 입력하세요.");
+            conn = peer.connect(tid);
+            initCommunication();
+            startGame(true); // 공격자로 시작
+        }
+
+        function initCommunication() {
+            conn.on('open', () => {
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('game-board').style.display = 'flex';
+                renderHand();
+            });
+
+            conn.on('data', data => {
+                if (data.type === 'play') {
+                    // 상대가 카드를 냄 (색깔만 노출)
+                    showOpCard(data.color);
+                    if (myPlayedValue) {
+                        conn.send({type: 'reveal', value: myPlayedValue});
+                    }
+                } else if (data.type === 'reveal') {
+                    // 상대가 실제 숫자를 공개함
+                    resolveRound(data.value);
+                }
+            });
+        }
+
+        function startGame(attacker) {
+            isMyTurn = attacker;
+            updateStatus();
+        }
+
+        function renderHand() {
+            const container = document.getElementById('my-hand');
+            container.innerHTML = '';
+            for(let i=1; i<=9; i++) {
+                const c = document.createElement('div');
+                c.className = `card my-hand-card ${i%2===0?'even':'odd'}`;
+                c.innerText = i;
+                c.id = `hand-${i}`;
+                c.onclick = () => playCard(i);
+                container.appendChild(c);
+            }
+        }
+
+        function playCard(val) {
+            if (!isMyTurn && !document.getElementById('op-spot').style.visibility === 'visible') {
+                return alert("상대가 먼저 내야 합니다.");
+            }
+            if (myPlayedValue !== null) return;
+
+            myPlayedValue = val;
+            document.getElementById(`hand-${val}`).classList.add('used');
+            
+            // 내 카드 아레나에 표시
+            const mySpot = document.getElementById('my-spot');
+            mySpot.style.visibility = 'visible';
+            mySpot.innerText = val;
+            mySpot.className = `card ${val%2===0?'even':'odd'}`;
+
+            // 상대에게 전송 (색깔만)
+            conn.send({type: 'play', color: val%2===0?'even':'odd'});
+
+            if (!isMyTurn) {
+                // 내가 수비자였으면 바로 숫자 공개 요청
+                conn.send({type: 'reveal', value: myPlayedValue});
+            } else {
+                document.getElementById('status-msg').innerText = "상대의 선택을 기다립니다...";
+            }
+        }
+
+        function showOpCard(color) {
+            const opSpot = document.getElementById('op-spot');
+            opSpot.style.visibility = 'visible';
+            opSpot.className = `card back ${color}`;
+            opSpot.innerText = "🐨";
+            document.getElementById('status-msg').innerText = "카드를 선택하세요!";
+        }
+
+        function resolveRound(receivedOpValue) {
+            opValue = receivedOpValue;
+            const opSpot = document.getElementById('op-spot');
+            opSpot.innerText = opValue;
+            opSpot.classList.remove('back');
+
+            let win = false;
+            let draw = false;
+
+            if (myPlayedValue === opValue) draw = true;
+            else if (myPlayedValue === 1 && opValue === 9) win = true;
+            else if (myPlayedValue === 9 && opValue === 1) win = false;
+            else win = myPlayedValue > opValue;
+
+            setTimeout(() => {
+                if(draw) {
+                    alert(`무승부! (${myPlayedValue} vs ${opValue})`);
+                } else if(win) {
+                    alert(`승리! (${myPlayedValue} vs ${opValue})`);
+                    myScore++;
+                    isMyTurn = true;
+                } else {
+                    alert(`패배... (${myPlayedValue} vs ${opValue})`);
+                    opScore++;
+                    isMyTurn = false;
+                }
+                nextRound();
+            }, 500);
+        }
+
+        function nextRound() {
+            myPlayedValue = null;
+            round++;
+            
+            document.getElementById('my-score').innerText = myScore;
+            document.getElementById('op-score').innerText = opScore;
+            document.getElementById('my-spot').style.visibility = 'hidden';
+            document.getElementById('op-spot').style.visibility = 'hidden';
+
+            if (round > 9) {
+                const final = myScore > opScore ? "축하합니다! 최종 승리!" : (myScore === opScore ? "무승부입니다." : "아쉽네요. 최종 패배...");
+                alert(`게임 종료\n${final}`);
+                location.reload();
+            } else {
+                document.getElementById('round-info').innerText = `ROUND ${round}/9`;
+                updateStatus();
+            }
+        }
+
+        function updateStatus() {
+            document.getElementById('status-msg').innerText = isMyTurn ? "당신이 공격할 차례입니다" : "상대의 공격을 기다립니다";
+        }
+    </script>
+</body>
+</html>
